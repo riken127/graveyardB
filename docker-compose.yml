@@ -1,0 +1,31 @@
+services:
+
+  scylla-node1:
+    container_name: scylla-node1
+    image: scylladb/scylla:5.2.0
+    restart: always
+    command: --seeds=scylla-node1,scylla-node2 --smp 1 --memory 750M --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - scylla-data:/var/lib/scylla
+    networks:
+      - web
+  
+  graveyard-db:
+    image: graveyard-db
+    container_name: graveyard-db
+    depends_on:
+      - scylla-node1
+    environment:
+     - SCYLLA_URI=scylla:9042
+     - KEYSPACE=eventstore
+     - RUST_LOG=info
+    ports:
+      - "50051:50051"
+    networks:
+      - web
+volumes:
+  scylla-data:
+
+networks:
+  web:
+    driver: bridge

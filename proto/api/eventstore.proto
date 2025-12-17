@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package eventstore;
+
+message Event {
+    string id = 1;
+    string event_type = 2;
+    bytes payload = 3;
+    uint64 timestamp = 4;
+}
+
+message AppendEventRequest {
+    string stream_id = 1;
+    repeated Event events = 2;
+}
+
+message AppendEventResponse {
+    bool success = 1;
+}
+
+message GetEventsRequest {
+    string stream_id = 1;
+}
+
+service EventStore {
+    rpc AppendEvent(AppendEventRequest) returns (AppendEventResponse);
+    rpc GetEvents(GetEventsRequest) returns (stream Event);
+}
