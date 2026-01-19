@@ -4,9 +4,7 @@ use graveyar_db::{
     grpc::GrpcService,
     pipeline::EventPipeline,
     storage::{
-        event_store::EventStore,
-        hybrid::HybridEventStore,
-        rocksdb::event_store::RocksEventStore,
+        event_store::EventStore, hybrid::HybridEventStore, rocksdb::event_store::RocksEventStore,
         scylla::session::ScyllaStore,
     },
 };
@@ -24,16 +22,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Storage Initialization
     let rocks_store = Arc::new(RocksEventStore::new(&config.db_path)?);
-    
+
     let storage: Arc<dyn EventStore> = if let Some(scylla_uri) = &config.scylla_uri {
         println!("Initializing ScyllaDB at {}...", scylla_uri);
         match ScyllaStore::new(scylla_uri, &config.scylla_keyspace).await {
             Ok(scylla) => {
                 println!("ScyllaDB connected. Using Hybrid Storage (Primary: Scylla, Fallback: RocksDB).");
                 Arc::new(HybridEventStore::new(Arc::new(scylla), rocks_store))
-            },
+            }
             Err(e) => {
-                eprintln!("Failed to connect to ScyllaDB: {}. Falling back to RocksDB only.", e);
+                eprintln!(
+                    "Failed to connect to ScyllaDB: {}. Falling back to RocksDB only.",
+                    e
+                );
                 rocks_store
             }
         }
@@ -43,7 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // 2. Pipeline
-    let pipeline = Arc::new(EventPipeline::new(storage, config.cluster_nodes.clone(), config.node_id));
+    let pipeline = Arc::new(EventPipeline::new(
+        storage,
+        config.cluster_nodes.clone(),
+        config.node_id,
+    ));
 
     // 3. gRPC Service
     let service = GrpcService::new(pipeline);

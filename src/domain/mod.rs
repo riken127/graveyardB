@@ -9,4 +9,3 @@ pub mod events;
 // "1: pub mod events;\n2: pub mod schemas;"
 // Use list_dir to confirm.
 pub mod schema;
-

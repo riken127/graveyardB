@@ -1,5 +1,5 @@
-use tokio::sync::oneshot;
 use crate::domain::events::event::Event;
+use tokio::sync::oneshot;
 
 pub enum PipelineCommand {
     Append {

@@ -29,7 +29,7 @@ pub struct FieldConstraints {
 pub enum FieldType {
     Primitive(PrimitiveType),
     Enum(EnumType),
-    Array(Box<FieldType>), // Recursive for array of types
+    Array(Box<FieldType>),  // Recursive for array of types
     SubSchema(Box<Schema>), // Nested schema
 }
 

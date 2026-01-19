@@ -1,18 +1,15 @@
-use tonic::{Request, Response, Status};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+use tonic::{Request, Response, Status};
 
 use crate::api::{
-    Event as ProtoEvent,
-    AppendEventRequest, AppendEventResponse,
-    GetEventsRequest,
-    UpsertSchemaRequest, UpsertSchemaResponse,
-    GetSchemaRequest, GetSchemaResponse,
-    event_store_server::EventStore
+    event_store_server::EventStore, AppendEventRequest, AppendEventResponse, Event as ProtoEvent,
+    GetEventsRequest, GetSchemaRequest, GetSchemaResponse, UpsertSchemaRequest,
+    UpsertSchemaResponse,
 };
-use crate::pipeline::EventPipeline;
 use crate::domain::events::event::Event as DomainEvent;
+use crate::pipeline::EventPipeline;
 
 pub struct GrpcService {
     pipeline: Arc<EventPipeline>,
@@ -41,15 +38,19 @@ impl EventStore for GrpcService {
         let mut domain_events = Vec::new();
         for proto_event in req.events {
             // using TryFrom
-            let mut event: DomainEvent = proto_event.try_into().map_err(|e: String| Status::invalid_argument(e))?;
+            let mut event: DomainEvent = proto_event
+                .try_into()
+                .map_err(|e: String| Status::invalid_argument(e))?;
             // Ensure stream_id is set
             event.stream_id = stream_id.clone();
             domain_events.push(event);
         }
 
-        let success = self.pipeline.append_event(&stream_id, domain_events, expected_version)
+        let success = self
+            .pipeline
+            .append_event(&stream_id, domain_events, expected_version)
             .await
-            .map_err(|e| Status::internal(e))?;
+            .map_err(Status::internal)?;
 
         Ok(Response::new(AppendEventResponse { success }))
     }
@@ -61,17 +62,19 @@ impl EventStore for GrpcService {
         let req = request.into_inner();
         let stream_id = req.stream_id;
 
-        let events = self.pipeline.fetch_stream(&stream_id)
+        let events = self
+            .pipeline
+            .fetch_stream(&stream_id)
             .await
-            .map_err(|e| Status::internal(e))?;
+            .map_err(Status::internal)?;
 
         let (tx, rx) = mpsc::channel(128);
-        
+
         // Spawn sender
         tokio::spawn(async move {
             for event in events {
                 let proto_event: ProtoEvent = event.into();
-                if let Err(_) = tx.send(Ok(proto_event)).await {
+                if (tx.send(Ok(proto_event)).await).is_err() {
                     break; // Receiver closed
                 }
             }
@@ -85,15 +88,21 @@ impl EventStore for GrpcService {
         request: Request<UpsertSchemaRequest>,
     ) -> Result<Response<UpsertSchemaResponse>, Status> {
         let req = request.into_inner();
-        let proto_schema = req.schema.ok_or_else(|| Status::invalid_argument("Schema is required"))?;
-        
-        let schema: crate::domain::schema::model::Schema = proto_schema.into();
-        
-        self.pipeline.upsert_schema(schema)
-            .await
-            .map_err(|e| Status::internal(e))?;
+        let proto_schema = req
+            .schema
+            .ok_or_else(|| Status::invalid_argument("Schema is required"))?;
 
-        Ok(Response::new(UpsertSchemaResponse { success: true, message: "Schema upserted".to_string() }))
+        let schema: crate::domain::schema::model::Schema = proto_schema.into();
+
+        self.pipeline
+            .upsert_schema(schema)
+            .await
+            .map_err(Status::internal)?;
+
+        Ok(Response::new(UpsertSchemaResponse {
+            success: true,
+            message: "Schema upserted".to_string(),
+        }))
     }
 
     async fn get_schema(
@@ -103,16 +112,24 @@ impl EventStore for GrpcService {
         let req = request.into_inner();
         let name = req.name;
 
-        let schema_opt: Option<crate::domain::schema::model::Schema> = self.pipeline.get_schema(&name)
+        let schema_opt: Option<crate::domain::schema::model::Schema> = self
+            .pipeline
+            .get_schema(&name)
             .await
-            .map_err(|e| Status::internal(e))?;
+            .map_err(Status::internal)?;
 
         match schema_opt {
             Some(schema) => {
                 let proto_schema: crate::api::Schema = schema.into();
-                 Ok(Response::new(GetSchemaResponse { schema: Some(proto_schema), found: true }))
+                Ok(Response::new(GetSchemaResponse {
+                    schema: Some(proto_schema),
+                    found: true,
+                }))
             }
-            None => Ok(Response::new(GetSchemaResponse { schema: None, found: false })),
+            None => Ok(Response::new(GetSchemaResponse {
+                schema: None,
+                found: false,
+            })),
         }
     }
 }

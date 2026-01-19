@@ -11,6 +11,12 @@ impl EventId {
     }
 }
 
+impl Default for EventId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Timestamp(pub u64);
 

@@ -38,7 +38,7 @@ impl Config {
             .ok()
             .and_then(|v| v.parse::<u16>().ok())
             .unwrap_or(50051);
-        
+
         // Allow configurable DB path for multi-node local run
         let db_path = env::var("DB_PATH").unwrap_or_else(|_| "data/rocksdb".to_string());
 

@@ -1,5 +1,5 @@
 pub mod event_store;
-pub mod rocksdb;
-pub mod memory;
-pub mod scylla;
 pub mod hybrid;
+pub mod memory;
+pub mod rocksdb;
+pub mod scylla;

@@ -1,9 +1,9 @@
 use crate::api::event_store_client::EventStoreClient;
 use crate::api::{AppendEventRequest, Event as ProtoEvent};
-use tonic::transport::Channel;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tonic::transport::Channel;
 
 #[derive(Clone)]
 pub struct ClusterClient {
@@ -15,6 +15,12 @@ impl ClusterClient {
         Self {
             clients: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+}
+
+impl Default for ClusterClient {
+    fn default() -> Self {
+        Self::new()
     }
 
     pub async fn get_client(&self, addr: &str) -> Result<EventStoreClient<Channel>, String> {
@@ -42,7 +48,7 @@ impl ClusterClient {
 
         let client = EventStoreClient::new(channel);
         map.insert(addr.to_string(), client.clone());
-        
+
         Ok(client)
     }
 
@@ -54,7 +60,7 @@ impl ClusterClient {
         expected_version: i64,
     ) -> Result<bool, String> {
         let mut client = self.get_client(target_node).await?;
-        
+
         // Convert Domain Events to Proto Events
         let proto_events: Vec<ProtoEvent> = events.into_iter().map(|e| e.into()).collect();
 
@@ -64,8 +70,12 @@ impl ClusterClient {
             expected_version: expected_version as u64, // Potential type mismatch if i64 vs u64, need to check proto
         };
 
-        let resp = client.append_event(req).await.map_err(|e| e.to_string())?.into_inner();
-        
+        let resp = client
+            .append_event(req)
+            .await
+            .map_err(|e| e.to_string())?
+            .into_inner();
+
         Ok(resp.success)
     }
 }

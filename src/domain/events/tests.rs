@@ -8,7 +8,7 @@ mod tests {
     fn test_event_creation_v7() {
         let payload = EventPayload(vec![1, 2, 3]);
         let event = Event::new("stream-1", EventKind::Internal, payload);
-        
+
         assert_eq!(event.stream_id, "stream-1");
         // Check version 7
         assert_eq!(event.id.0.get_version(), Some(uuid::Version::SortRand));

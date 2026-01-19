@@ -28,12 +28,12 @@ impl EventStore for InMemoryEventStore {
             .store
             .write()
             .map_err(|_| EventStoreError::Unknown("Lock poison".to_string()))?;
-        
+
         store
             .entry(stream.to_string())
             .or_insert_with(Vec::new)
             .push(event);
-            
+
         Ok(())
     }
 
@@ -49,12 +49,18 @@ impl EventStore for InMemoryEventStore {
         }
     }
 
-    async fn upsert_schema(&self, _schema: crate::domain::schema::model::Schema) -> Result<(), EventStoreError> {
+    async fn upsert_schema(
+        &self,
+        _schema: crate::domain::schema::model::Schema,
+    ) -> Result<(), EventStoreError> {
         // No-op for now or simple log
         Ok(())
     }
 
-    async fn get_schema(&self, _name: &str) -> Result<Option<crate::domain::schema::model::Schema>, EventStoreError> {
+    async fn get_schema(
+        &self,
+        _name: &str,
+    ) -> Result<Option<crate::domain::schema::model::Schema>, EventStoreError> {
         Ok(None)
     }
 }
@@ -70,17 +76,23 @@ mod tests {
         let payload = EventPayload(vec![1, 2, 3]);
         let event = Event::new("stream-1", EventKind::Internal, payload);
 
-        store.append_event("stream-1", event.clone()).await.expect("Append failed");
+        store
+            .append_event("stream-1", event.clone())
+            .await
+            .expect("Append failed");
 
         let loaded = store.fetch_stream("stream-1").await.expect("Load failed");
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id.0, event.id.0);
     }
-    
+
     #[tokio::test]
     async fn test_load_empty() {
         let store = InMemoryEventStore::new();
-        let loaded = store.fetch_stream("non-existent").await.expect("Load failed");
+        let loaded = store
+            .fetch_stream("non-existent")
+            .await
+            .expect("Load failed");
         assert!(loaded.is_empty());
     }
 }

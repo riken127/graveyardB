@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     payload: format!("{{\"worker\": {}, \"seq\": {}}}", i, j).into_bytes(),
                     timestamp: 0,
                 };
-                
+
                 let req = AppendEventRequest {
                     stream_id: stream_id.clone(),
                     events: vec![event],

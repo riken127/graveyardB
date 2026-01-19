@@ -1,16 +1,16 @@
 pub mod command;
 pub mod worker;
 
-use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use crate::storage::event_store::EventStore;
+use crate::cluster::client::ClusterClient;
+use crate::cluster::NodeSelector;
 use crate::domain::events::event::Event;
 use crate::pipeline::command::PipelineCommand;
 use crate::pipeline::worker::Worker;
-use crate::cluster::NodeSelector;
-use crate::cluster::client::ClusterClient;
+use crate::storage::event_store::EventStore;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+use tokio::sync::{mpsc, oneshot};
 
 const NUM_WORKERS: usize = 32;
 
@@ -48,17 +48,20 @@ impl EventPipeline {
             sorted_nodes[self_node_id as usize].clone()
         } else {
             // Fallback for single node dev mode if config mismatch, assuming first one
-            sorted_nodes.first().cloned().unwrap_or_else(|| "127.0.0.1:50051".to_string())
+            sorted_nodes
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "127.0.0.1:50051".to_string())
         };
-        
+
         let cluster_client = ClusterClient::new();
 
-        Self { 
-            storage, 
+        Self {
+            storage,
             workers,
             node_selector,
             cluster_client,
-            self_addr
+            self_addr,
         }
     }
 
@@ -71,7 +74,7 @@ impl EventPipeline {
     ) -> Result<bool, String> {
         // 1. Determine Owner
         let target_node = self.node_selector.get_node_for_stream(stream_id);
-        
+
         // 2. Route
         if target_node == self.self_addr {
             // Local Processing via Sharded Workers
@@ -79,35 +82,55 @@ impl EventPipeline {
             stream_id.hash(&mut hasher);
             let hash = hasher.finish();
             let worker_idx = (hash as usize) % self.workers.len();
-            
+
             let (resp_tx, resp_rx) = oneshot::channel();
-            
+
             let cmd = PipelineCommand::Append {
                 stream_id: stream_id.to_string(),
                 events,
                 expected_version,
                 resp_tx,
             };
-            
-            self.workers[worker_idx].send(cmd).await.map_err(|e| e.to_string())?;
-            
+
+            self.workers[worker_idx]
+                .send(cmd)
+                .await
+                .map_err(|e| e.to_string())?;
+
             resp_rx.await.map_err(|e| e.to_string())?
         } else {
             // Remote Forwarding
 
-            self.cluster_client.forward_append(&target_node, stream_id, events, expected_version).await
+            self.cluster_client
+                .forward_append(&target_node, stream_id, events, expected_version)
+                .await
         }
     }
 
     pub async fn fetch_stream(&self, stream_id: &str) -> Result<Vec<Event>, String> {
-        self.storage.fetch_stream(stream_id).await.map_err(|e| e.to_string())
+        self.storage
+            .fetch_stream(stream_id)
+            .await
+            .map_err(|e| e.to_string())
     }
 
-    pub async fn upsert_schema(&self, schema: crate::domain::schema::model::Schema) -> Result<(), String> {
-        self.storage.upsert_schema(schema).await.map_err(|e| e.to_string())
+    pub async fn upsert_schema(
+        &self,
+        schema: crate::domain::schema::model::Schema,
+    ) -> Result<(), String> {
+        self.storage
+            .upsert_schema(schema)
+            .await
+            .map_err(|e| e.to_string())
     }
 
-    pub async fn get_schema(&self, name: &str) -> Result<Option<crate::domain::schema::model::Schema>, String> {
-        self.storage.get_schema(name).await.map_err(|e| e.to_string())
+    pub async fn get_schema(
+        &self,
+        name: &str,
+    ) -> Result<Option<crate::domain::schema::model::Schema>, String> {
+        self.storage
+            .get_schema(name)
+            .await
+            .map_err(|e| e.to_string())
     }
 }

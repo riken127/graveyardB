@@ -78,18 +78,17 @@ impl ScyllaStore {
 
         Ok(())
     }
-    
+
     pub fn get_session(&self) -> &Session {
         &self.session
     }
 }
 
 use crate::domain::events::event::Event;
-use crate::storage::event_store::{EventStore, EventStoreError};
-use crate::domain::schema::model::Schema;
 use crate::domain::events::event_kind::{EventKind, EventPayload};
+use crate::domain::schema::model::Schema;
+use crate::storage::event_store::{EventStore, EventStoreError};
 use tonic::async_trait;
-
 
 #[async_trait]
 impl EventStore for ScyllaStore {
@@ -99,7 +98,7 @@ impl EventStore for ScyllaStore {
             "INSERT INTO {}.events (stream_id, id, event_type, payload, timestamp) VALUES (?, ?, ?, ?, ?)",
             self.keyspace
         );
-        
+
         let id = event.id.0;
         let event_type_str = format!("{:?}", event.event_type);
         let payload = event.payload.0;
@@ -119,24 +118,26 @@ impl EventStore for ScyllaStore {
             self.keyspace
         );
 
-        let query_result = self.session
+        let query_result = self
+            .session
             .query_unpaged(query, (stream,))
             .await
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-            
+
         let rows_result = query_result
             .into_rows_result()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-            
+
         let rows = rows_result
-            .rows::< (String, uuid::Uuid, String, Vec<u8>, i64) >()
+            .rows::<(String, uuid::Uuid, String, Vec<u8>, i64)>()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
         let mut events = Vec::new();
-        
+
         for row in rows {
-            let (_stream_id, id, event_type_str, payload, timestamp) = row.map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-            
+            let (_stream_id, id, event_type_str, payload, timestamp) =
+                row.map_err(|e| EventStoreError::StorageError(e.to_string()))?;
+
             // Reconstruct Event
             let event_type = match event_type_str.as_str() {
                 "Internal" => crate::domain::events::event_kind::EventKind::Internal,
@@ -160,24 +161,24 @@ impl EventStore for ScyllaStore {
     async fn upsert_schema(&self, schema: Schema) -> Result<(), EventStoreError> {
         // 1. Append to Migration Log (Event Stream)
         let stream_id = format!("$schema:{}", schema.name);
-        
+
         // Serialize Schema to Payload
         let payload_bytes = serde_cbor::to_vec(&schema)?;
-        
+
         let migration_event = Event::new(
             &stream_id,
             EventKind::Schematic,
             EventPayload(payload_bytes.clone()),
         );
-        
+
         self.append_event(&stream_id, migration_event).await?;
-        
+
         // 2. Update Current State Table
         let query = format!(
             "INSERT INTO {}.schemas (name, definition, updated_at) VALUES (?, ?, ?)",
             self.keyspace
         );
-        
+
         // Use current timestamp for updated_at
         let updated_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -198,25 +199,27 @@ impl EventStore for ScyllaStore {
             self.keyspace
         );
 
-        let query_result = self.session
+        let query_result = self
+            .session
             .query_unpaged(query, (name,))
             .await
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-            
+
         let rows_result = query_result
             .into_rows_result()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-            
+
         // Use standard iterator
-        let rows = rows_result.rows::<(Vec<u8>,)>().map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-        
-        for row_res in rows {
+        let rows = rows_result
+            .rows::<(Vec<u8>,)>()
+            .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
+
+        if let Some(row_res) = rows.next() {
             let (bytes,) = row_res.map_err(|e| EventStoreError::StorageError(e.to_string()))?;
             let schema: Schema = serde_cbor::from_slice(&bytes)?;
             return Ok(Some(schema));
         }
-        
+
         Ok(None)
     }
 }
-
