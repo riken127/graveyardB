@@ -101,9 +101,9 @@ impl EventStore for ScyllaStore {
         );
         
         let id = event.id.0;
-        let event_type_str = format!("{:?}", event.event_type); // Using debug
+        let event_type_str = format!("{:?}", event.event_type);
         let payload = event.payload.0;
-        let timestamp = event.timestamp.0 as i64; // cast u64 to i64
+        let timestamp = event.timestamp.0 as i64;
 
         self.session
             .query_unpaged(query, (stream, id, event_type_str, payload, timestamp))

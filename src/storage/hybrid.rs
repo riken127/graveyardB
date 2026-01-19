@@ -42,16 +42,12 @@ impl EventStore for HybridEventStore {
     }
 
     async fn upsert_schema(&self, schema: Schema) -> Result<(), EventStoreError> {
-        // For Schema, we might want dual-write or failover.
-        // For robustness MVP, we'll do failover to ensure the system keeps working.
-        // Ideally, we should attempt to write to both to keep them in sync if possible, 
-        // but that complicates partial failure handling.
+        // Primary first, then failover.
+        // TODO: Consider dual-write for stronger consistency.
         
         match self.primary.upsert_schema(schema.clone()).await {
             Ok(_) => {
-                // Determine if we should also write to fallback to keep it warm?
-                // For now, let's keep it simple: Failover only.
-                // If primary writes, we assume primary is source of truth.
+
                 Ok(())
             },
             Err(e) => {
