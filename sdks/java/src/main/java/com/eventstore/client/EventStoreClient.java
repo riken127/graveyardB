@@ -38,10 +38,6 @@ public class EventStoreClient {
     /**
      * Appends events to a stream without optimistic concurrency control.
      * Equivalent to {@code appendEvent(streamId, events, -1)}.
-     *
-     * @param streamId The ID of the stream to append to.
-     * @param events   The list of events to append.
-     * @return true if successful, false otherwise.
      */
     public boolean appendEvent(String streamId, List<Event> events) {
         return appendEvent(streamId, events, -1);
@@ -70,11 +66,6 @@ public class EventStoreClient {
 
     /**
      * Asynchronously appends events to a stream.
-     *
-     * @param streamId        The ID of the stream.
-     * @param events          The events to append.
-     * @param expectedVersion The expected version (-1 for any).
-     * @return A Future containing the response.
      */
     public com.google.common.util.concurrent.ListenableFuture<AppendEventResponse> appendEventAsync(String streamId, List<Event> events, long expectedVersion) {
         AppendEventRequest request = AppendEventRequest.newBuilder()
@@ -105,11 +96,8 @@ public class EventStoreClient {
     }
 
     /**
-     * registers or updates the schema for the given entity class.
+     * Registers or updates the schema for the given entity class.
      * The class must be annotated with @GraveyardEntity.
-     *
-     * @param entityClass The class of the entity to register.
-     * @return The response from the server.
      */
     public UpsertSchemaResponse upsertSchema(Class<?> entityClass) {
         if (!entityClass.isAnnotationPresent(GraveyardEntity.class)) {
