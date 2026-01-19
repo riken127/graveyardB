@@ -32,7 +32,78 @@ message GetEventsRequest {
     string stream_id = 1;
 }
 
+// --- Schema Definitions ---
+
+message Schema {
+    string name = 1;
+    map<string, Field> fields = 2;
+}
+
+message Field {
+    FieldType field_type = 1;
+    bool nullable = 2;
+    bool overrides_on_null = 3;
+    FieldConstraints constraints = 4;
+}
+
+message FieldConstraints {
+    bool required = 1;
+    // For numbers
+    optional double min_value = 2;
+    optional double max_value = 3;
+    // For strings
+    optional int32 min_length = 4;
+    optional int32 max_length = 5;
+    optional string regex = 6;
+}
+
+message FieldType {
+    enum Primitive {
+        NUMBER = 0;
+        STRING = 1;
+        BOOLEAN = 2;
+    }
+    
+    message Enum {
+        repeated string variants = 1;
+    }
+    
+    // Recursive message definition
+    message Array {
+        FieldType element_type = 1;
+    }
+
+    oneof kind {
+        Primitive primitive = 1;
+        Enum enum_def = 2;
+        Schema sub_schema = 3;
+        Array array_def = 4;
+    }
+}
+
+message UpsertSchemaRequest {
+    Schema schema = 1;
+}
+
+message UpsertSchemaResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message GetSchemaRequest {
+    string name = 1;
+}
+
+message GetSchemaResponse {
+    Schema schema = 1;
+    bool found = 2;
+}
+
 service EventStore {
     rpc AppendEvent(AppendEventRequest) returns (AppendEventResponse);
     rpc GetEvents(GetEventsRequest) returns (stream Event);
+    
+    // Schema Management
+    rpc UpsertSchema(UpsertSchemaRequest) returns (UpsertSchemaResponse);
+    rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
 }

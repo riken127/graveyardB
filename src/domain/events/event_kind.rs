@@ -33,6 +33,15 @@ pub enum EventKind {
     Internal,
     Schematic,
     Transactional,
+    // Add External if it was used in other code, or fix usage. Error said 'External' not found.
+    // Let's add it if it's needed, or map it.
+    External,
+}
+
+impl std::fmt::Display for EventKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

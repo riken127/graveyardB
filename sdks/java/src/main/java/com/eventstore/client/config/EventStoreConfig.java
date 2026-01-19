@@ -25,6 +25,10 @@ public class EventStoreConfig {
         return timeoutMs;
     }
 
+    public void setTimeoutMs(long timeoutMs) {
+        this.timeoutMs = timeoutMs;
+    }
+
     @Bean
     public ManagedChannel eventStoreChannel() {
         ManagedChannelBuilder<?> builder = ManagedChannelBuilder.forAddress(host, port);

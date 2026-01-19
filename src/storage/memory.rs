@@ -48,6 +48,15 @@ impl EventStore for InMemoryEventStore {
             None => Ok(Vec::new()),
         }
     }
+
+    async fn upsert_schema(&self, _schema: crate::domain::schema::model::Schema) -> Result<(), EventStoreError> {
+        // No-op for now or simple log
+        Ok(())
+    }
+
+    async fn get_schema(&self, _name: &str) -> Result<Option<crate::domain::schema::model::Schema>, EventStoreError> {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

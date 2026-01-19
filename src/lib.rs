@@ -10,6 +10,7 @@
 //! - `pipeline`: Event processing pipeline.
 //! - `storage`: Pluggable storage engine traits and implementations.
 
+pub mod cluster;
 pub mod config;
 pub mod domain;
 pub mod grpc;

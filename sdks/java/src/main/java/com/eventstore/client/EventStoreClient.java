@@ -5,6 +5,10 @@ import com.eventstore.client.model.AppendEventResponse;
 import com.eventstore.client.model.Event;
 import com.eventstore.client.model.EventStoreGrpc;
 import com.eventstore.client.model.GetEventsRequest;
+import com.eventstore.client.model.UpsertSchemaRequest;
+import com.eventstore.client.model.UpsertSchemaResponse;
+import com.eventstore.client.schema.SchemaGenerator;
+import com.eventstore.client.annotations.GraveyardEntity;
 import com.eventstore.client.config.EventStoreConfig;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -98,5 +102,28 @@ public class EventStoreClient {
         return blockingStub
                 .withDeadlineAfter(config.getTimeoutMs(), TimeUnit.MILLISECONDS)
                 .getEvents(request);
+    }
+
+    /**
+     * registers or updates the schema for the given entity class.
+     * The class must be annotated with @GraveyardEntity.
+     *
+     * @param entityClass The class of the entity to register.
+     * @return The response from the server.
+     */
+    public UpsertSchemaResponse upsertSchema(Class<?> entityClass) {
+        if (!entityClass.isAnnotationPresent(GraveyardEntity.class)) {
+            throw new IllegalArgumentException("Class " + entityClass.getName() + " is not annotated with @GraveyardEntity");
+        }
+
+        com.eventstore.client.model.Schema schema = SchemaGenerator.generate(entityClass);
+        
+        UpsertSchemaRequest request = UpsertSchemaRequest.newBuilder()
+                .setSchema(schema)
+                .build();
+
+        return blockingStub
+                .withDeadlineAfter(config.getTimeoutMs(), TimeUnit.MILLISECONDS)
+                .upsertSchema(request);
     }
 }

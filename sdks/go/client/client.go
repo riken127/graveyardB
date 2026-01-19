@@ -2,13 +2,20 @@ package client
 
 import (
 	"context"
-	"time"
+	"crypto/tls"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	pb "github.com/riken127/graveyar_db/sdks/go/proto"
+	"github.com/riken127/graveyar_db/sdks/go/schema"
 )
+
+// GenerateSchema is a helper to generate a Schema definition from a Go struct.
+func GenerateSchema(v interface{}) (*pb.Schema, error) {
+	return schema.Generate(v)
+}
 
 // Client is the high-level client for interacting with the graveyar_db Event Store.
 // It manages the underlying gRPC connection and provides strongly-typed methods
@@ -22,7 +29,30 @@ type Client struct {
 // NewClient creates a new Client with the provided configuration.
 // It establishes a gRPC connection to the server specified in config.Address.
 func NewClient(config Config) (*Client, error) {
-	conn, err := grpc.Dial(config.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var opts []grpc.DialOption
+
+	if config.UseTLS {
+		var creds credentials.TransportCredentials
+		var err error
+
+		if config.TLSCertFile != "" {
+			creds, err = credentials.NewClientTLSFromFile(config.TLSCertFile, "")
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Use system root CAs
+			// Note: This requires "crypto/x509" and "google.golang.org/grpc/credentials"
+			// Since we want to keep imports clean, we'll try standard loading if needed
+			// actually credentials.NewTLS(nil) uses system roots
+			creds = credentials.NewTLS(&tls.Config{})
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+
+	conn, err := grpc.Dial(config.Address, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +121,32 @@ func (c *Client) GetEvents(ctx context.Context, streamID string) (pb.EventStore_
 		StreamId: streamID,
 	}
 	return c.client.GetEvents(ctx, req)
+}
+
+// UpsertSchema registers or updates a schema definition.
+func (c *Client) UpsertSchema(ctx context.Context, schema *pb.Schema) (*pb.UpsertSchemaResponse, error) {
+	if _, ok := ctx.Deadline(); !ok && c.config.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.config.Timeout)
+		defer cancel()
+	}
+
+	req := &pb.UpsertSchemaRequest{
+		Schema: schema,
+	}
+	return c.client.UpsertSchema(ctx, req)
+}
+
+// GetSchema retrieves a schema definition by name.
+func (c *Client) GetSchema(ctx context.Context, name string) (*pb.GetSchemaResponse, error) {
+	if _, ok := ctx.Deadline(); !ok && c.config.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.config.Timeout)
+		defer cancel()
+	}
+
+	req := &pb.GetSchemaRequest{
+		Name: name,
+	}
+	return c.client.GetSchema(ctx, req)
 }

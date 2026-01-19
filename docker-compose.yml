@@ -1,26 +1,70 @@
 services:
 
+  graveyard-node-1:
+    build: .
+    image: graveyard-db:latest
+    container_name: graveyard-node-1
+    restart: unless-stopped
+    depends_on:
+      scylla-node1:
+        condition: service_healthy
+    environment:
+     - SCYLLA_URI=scylla-node1:9042
+     - SCYLLA_KEYSPACE=eventstore
+     - RUST_LOG=info
+     - CLUSTER_NODES=graveyard-node-1:50051,graveyard-node-2:50051
+     - NODE_ID=0
+    ports:
+      - "50051:50051"
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  graveyard-node-2:
+    build: .
+    image: graveyard-db:latest
+    container_name: graveyard-node-2
+    restart: unless-stopped
+    depends_on:
+      scylla-node1:
+        condition: service_healthy
+    environment:
+     - SCYLLA_URI=scylla-node1:9042
+     - SCYLLA_KEYSPACE=eventstore
+     - RUST_LOG=info
+     - CLUSTER_NODES=graveyard-node-1:50051,graveyard-node-2:50051
+     - NODE_ID=1
+    ports:
+      - "50052:50051"
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   scylla-node1:
     container_name: scylla-node1
     image: scylladb/scylla:5.2.0
     restart: always
-    command: --seeds=scylla-node1,scylla-node2 --smp 1 --memory 750M --overprovisioned 1 --api-address 0.0.0.0
+    command: --seeds=scylla-node1 --smp 1 --memory 1G --overprovisioned 1 --api-address 0.0.0.0
+    ulimits:
+      memlock: -1
+      nofile:
+        soft: 65535
+        hard: 65535
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE KEYSPACES'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     volumes:
       - scylla-data:/var/lib/scylla
-    networks:
-      - web
-  
-  graveyard-db:
-    image: graveyard-db
-    container_name: graveyard-db
-    depends_on:
-      - scylla-node1
-    environment:
-     - SCYLLA_URI=scylla:9042
-     - KEYSPACE=eventstore
-     - RUST_LOG=info
-    ports:
-      - "50051:50051"
     networks:
       - web
 volumes:

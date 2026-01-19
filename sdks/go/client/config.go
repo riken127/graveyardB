@@ -10,14 +10,23 @@ type Config struct {
 	// Timeout is the default timeout for gRPC calls.
 	// If zero, no timeout is applied by default (though context deadline still applies).
 	Timeout time.Duration
+
+	// UseTLS indicates whether to use a secure TLS connection.
+	UseTLS bool
+
+	// TLSCertFile is the path to the CA certificate file for verifying the server's certificate.
+	// If empty and UseTLS is true, the system's root CAs will be used.
+	TLSCertFile string
 }
 
 // DefaultConfig returns a default configuration with:
 // Address: "localhost:50051"
 // Timeout: 5 seconds
+// UseTLS: false
 func DefaultConfig() Config {
 	return Config{
 		Address: "localhost:50051",
 		Timeout: 5 * time.Second,
+		UseTLS:  false,
 	}
 }

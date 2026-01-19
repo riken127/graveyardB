@@ -5,6 +5,7 @@ use crate::{
     domain::events::event::Event,
     storage::event_store::{EventStore, EventStoreError},
 };
+use crate::domain::schema::model::Schema;
 
 pub struct RocksEventStore {
     db: DB,
@@ -55,6 +56,24 @@ impl EventStore for RocksEventStore {
             events.push(event);
         }
         Ok(events)
+    }
+
+    async fn upsert_schema(&self, schema: Schema) -> Result<(), EventStoreError> {
+        let key = format!("schema:{}", schema.name);
+        let value = serde_cbor::to_vec(&schema)?;
+        self.db.put(key, value).map_err(|e| EventStoreError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    async fn get_schema(&self, name: &str) -> Result<Option<Schema>, EventStoreError> {
+        let key = format!("schema:{}", name);
+        match self.db.get(key).map_err(|e| EventStoreError::StorageError(e.to_string()))? {
+            Some(value) => {
+                let schema = serde_cbor::from_slice(&value)?;
+                Ok(Some(schema))
+            }
+            None => Ok(None),
+        }
     }
 }
 

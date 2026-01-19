@@ -1,8 +1,12 @@
-.PHONY: gen test
+.PHONY: gen test lint
+
+lint:
+	golangci-lint run
 
 gen:
-	protoc --go_out=. --go_opt=paths=source_relative \
-	       --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	mkdir -p proto
+	protoc --go_out=proto --go_opt=paths=source_relative \
+	       --go-grpc_out=proto --go-grpc_opt=paths=source_relative \
 	       -I ../../proto/api \
 	       ../../proto/api/eventstore.proto
 

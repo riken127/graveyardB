@@ -43,6 +43,33 @@ Inject the client into your service:
 private EventStoreClient client;
 ```
 
+### Entity & Schema Management
+
+Annotate your domain objects:
+
+```java
+@GraveyardEntity("user_profile")
+public class UserProfile {
+    @GraveyardField(minLength = 3, regex = "^[a-z]+$", nullable = false)
+    private String username;
+    
+    @GraveyardField(min = 18, max = 150)
+    private int age;
+}
+```
+
+Supported Constraints:
+- `min` / `max`: For numeric values.
+- `minLength` / `maxLength`: For strings.
+- `regex`: Regular expression pattern.
+- `nullable`: Whether the field is optional (default: true).
+
+Register the schema (this generates the Proto schema and sends it to the server):
+
+```java
+client.upsertSchema(UserProfile.class);
+```
+
 ### Append Sync
 
 ```java
@@ -75,6 +102,22 @@ while (events.hasNext()) {
 
 Build and run tests:
 
-```bash
-mvn clean install
+## Production Guide
+
+### Performance
+The client uses gRPC-Netty, which manages **off-heap ring buffers** for high-performance I/O. To maximize throughput:
+- **Reuse Client**: Create one `EventStoreClient` bean and share it across threads. It is thread-safe and uses a single multiplexed connection.
+- **Use Async**: Prefer `appendEventAsync` for high-volume writes to avoid blocking threads.
+
+### Configuration
+Ensure your `application.properties` is tuned for production:
+
+```properties
+# Enable TLS for security
+eventstore.use-tls=true
+# Adjust timeout based on network latency (default 5000ms)
+eventstore.timeout-ms=2000
 ```
+
+### Constraints & Data Integrity
+Use `@GraveyardField` constraints to enforce schema validation at the definition level. This ensures that the schema registered with the server is strict, preventing invalid data from entering the system (once server-side validation is active).

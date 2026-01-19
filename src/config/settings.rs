@@ -5,6 +5,8 @@ pub struct Config {
     pub scylla_uri: Option<String>,
     pub scylla_keyspace: String,
     pub request_timeout: Duration,
+    pub node_id: u64,
+    pub cluster_nodes: Vec<String>,
 }
 
 impl Config {
@@ -20,10 +22,22 @@ impl Config {
             .map(Duration::from_millis)
             .unwrap_or(Duration::from_secs(3));
 
+        let node_id = env::var("NODE_ID")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(0);
+
+        let cluster_nodes = env::var("CLUSTER_NODES")
+            .ok()
+            .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
+            .unwrap_or_else(|| vec!["127.0.0.1:50051".to_string()]); // Default single node
+
         Ok(Self {
             scylla_uri,
             scylla_keyspace,
             request_timeout,
+            node_id,
+            cluster_nodes,
         })
     }
 }

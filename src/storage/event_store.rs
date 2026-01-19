@@ -14,8 +14,12 @@ pub enum EventStoreError {
     Unknown(String),
 }
 
+
+
 #[async_trait]
 pub trait EventStore: Send + Sync {
     async fn append_event(&self, stream: &str, event: Event) -> Result<(), EventStoreError>;
     async fn fetch_stream(&self, stream: &str) -> Result<Vec<Event>, EventStoreError>;
+    async fn upsert_schema(&self, schema: crate::domain::schema::model::Schema) -> Result<(), EventStoreError>;
+    async fn get_schema(&self, name: &str) -> Result<Option<crate::domain::schema::model::Schema>, EventStoreError>;
 }

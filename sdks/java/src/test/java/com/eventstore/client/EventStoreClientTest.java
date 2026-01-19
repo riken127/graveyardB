@@ -1,11 +1,14 @@
 package com.eventstore.client;
 
+import com.eventstore.client.annotations.GraveyardEntity;
+import com.eventstore.client.annotations.GraveyardField;
 import com.eventstore.client.config.EventStoreConfig;
 import com.eventstore.client.model.AppendEventRequest;
 import com.eventstore.client.model.AppendEventResponse;
 import com.eventstore.client.model.Event;
 import com.eventstore.client.model.EventStoreGrpc;
 import com.eventstore.client.model.GetEventsRequest;
+import com.eventstore.client.model.UpsertSchemaResponse;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.ManagedChannel;
@@ -141,5 +144,74 @@ class EventStoreClientTest {
         // Assert
         assertNotNull(result);
         verify(futureStub).withDeadlineAfter(5000L, TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    void upsertSchema_Success() {
+        // Arrange
+        UpsertSchemaResponse response = UpsertSchemaResponse.newBuilder().setSuccess(true).build();
+        when(blockingStub.withDeadlineAfter(anyLong(), any(TimeUnit.class))).thenReturn(blockingStub);
+        when(blockingStub.upsertSchema(any(com.eventstore.client.model.UpsertSchemaRequest.class))).thenReturn(response);
+
+        // Act
+        UpsertSchemaResponse result = eventStoreClient.upsertSchema(TestEntity.class);
+
+        // Assert
+        assertTrue(result.getSuccess());
+        
+        ArgumentCaptor<com.eventstore.client.model.UpsertSchemaRequest> captor = ArgumentCaptor.forClass(com.eventstore.client.model.UpsertSchemaRequest.class);
+        verify(blockingStub).upsertSchema(captor.capture());
+        
+        com.eventstore.client.model.Schema schema = captor.getValue().getSchema();
+        assertEquals("test_entity", schema.getName());
+        assertTrue(schema.getFieldsMap().containsKey("name"));
+        assertTrue(schema.getFieldsMap().containsKey("age"));
+    }
+
+    @Test
+    void upsertSchema_WithConstraints() {
+        // Arrange
+        UpsertSchemaResponse response = UpsertSchemaResponse.newBuilder().setSuccess(true).build();
+        when(blockingStub.withDeadlineAfter(anyLong(), any(TimeUnit.class))).thenReturn(blockingStub);
+        when(blockingStub.upsertSchema(any(com.eventstore.client.model.UpsertSchemaRequest.class))).thenReturn(response);
+
+        // Act
+        UpsertSchemaResponse result = eventStoreClient.upsertSchema(ConstrainedEntity.class);
+
+        // Assert
+        assertTrue(result.getSuccess());
+        
+        ArgumentCaptor<com.eventstore.client.model.UpsertSchemaRequest> captor = ArgumentCaptor.forClass(com.eventstore.client.model.UpsertSchemaRequest.class);
+        verify(blockingStub).upsertSchema(captor.capture());
+        
+        com.eventstore.client.model.Schema schema = captor.getValue().getSchema();
+        assertTrue(schema.getFieldsMap().containsKey("age"));
+        
+        com.eventstore.client.model.Field ageField = schema.getFieldsMap().get("age");
+        assertTrue(ageField.hasConstraints());
+        assertEquals(0.0, ageField.getConstraints().getMinValue());
+        assertEquals(150.0, ageField.getConstraints().getMaxValue());
+        
+        com.eventstore.client.model.Field usernameField = schema.getFieldsMap().get("username");
+        assertTrue(usernameField.hasConstraints());
+        assertEquals(3, usernameField.getConstraints().getMinLength());
+        assertEquals("^[a-z]+$", usernameField.getConstraints().getRegex());
+    }
+
+    @GraveyardEntity("test_entity")
+    static class TestEntity {
+        @GraveyardField(nullable = false)
+        String name;
+        
+        int age;
+    }
+
+    @GraveyardEntity("constrained_entity")
+    static class ConstrainedEntity {
+        @GraveyardField(min = 0, max = 150)
+        int age;
+        
+        @GraveyardField(minLength = 3, regex = "^[a-z]+$")
+        String username;
     }
 }
