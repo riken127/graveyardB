@@ -11,6 +11,8 @@ use crate::api::{
 use crate::domain::events::event::Event as DomainEvent;
 use crate::pipeline::EventPipeline;
 
+pub mod auth;
+
 pub struct GrpcService {
     pipeline: Arc<EventPipeline>,
 }

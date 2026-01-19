@@ -27,6 +27,7 @@ impl EventPipeline {
         storage: Arc<dyn EventStore + Send + Sync>,
         cluster_nodes: Vec<String>,
         self_node_id: u64,
+        auth_token: Option<String>,
     ) -> Self {
         let mut workers = Vec::with_capacity(NUM_WORKERS);
 
@@ -54,7 +55,7 @@ impl EventPipeline {
                 .unwrap_or_else(|| "127.0.0.1:50051".to_string())
         };
 
-        let cluster_client = ClusterClient::new();
+        let cluster_client = ClusterClient::new(auth_token);
 
         Self {
             storage,

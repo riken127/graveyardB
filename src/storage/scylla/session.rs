@@ -210,7 +210,7 @@ impl EventStore for ScyllaStore {
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
         // Use standard iterator
-        let rows = rows_result
+        let mut rows = rows_result
             .rows::<(Vec<u8>,)>()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 

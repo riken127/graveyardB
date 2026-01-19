@@ -9,6 +9,7 @@ pub struct Config {
     pub cluster_nodes: Vec<String>,
     pub port: u16,
     pub db_path: String,
+    pub auth_token: Option<String>,
 }
 
 impl Config {
@@ -42,6 +43,8 @@ impl Config {
         // Allow configurable DB path for multi-node local run
         let db_path = env::var("DB_PATH").unwrap_or_else(|_| "data/rocksdb".to_string());
 
+        let auth_token = env::var("AUTH_TOKEN").ok();
+
         Ok(Self {
             scylla_uri,
             scylla_keyspace,
@@ -50,6 +53,7 @@ impl Config {
             cluster_nodes,
             port,
             db_path,
+            auth_token,
         })
     }
 }

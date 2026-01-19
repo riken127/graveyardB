@@ -1,6 +1,7 @@
 use crate::api::event_store_client::EventStoreClient;
 use crate::api::{AppendEventRequest, Event as ProtoEvent};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tonic::transport::Channel;
@@ -8,19 +9,21 @@ use tonic::transport::Channel;
 #[derive(Clone)]
 pub struct ClusterClient {
     clients: Arc<RwLock<HashMap<String, EventStoreClient<Channel>>>>,
+    auth_token: Option<String>,
 }
 
 impl ClusterClient {
-    pub fn new() -> Self {
+    pub fn new(auth_token: Option<String>) -> Self {
         Self {
             clients: Arc::new(RwLock::new(HashMap::new())),
+            auth_token,
         }
     }
 }
 
 impl Default for ClusterClient {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
@@ -69,11 +72,19 @@ impl ClusterClient {
         let req = AppendEventRequest {
             stream_id: stream_id.to_string(),
             events: proto_events,
-            expected_version: expected_version as u64, // Potential type mismatch if i64 vs u64, need to check proto
+            expected_version: expected_version as u64,
         };
 
+        let mut request = tonic::Request::new(req);
+        if let Some(token) = &self.auth_token {
+            let auth_value = format!("Bearer {}", token);
+            if let Ok(meta_val) = tonic::metadata::MetadataValue::from_str(&auth_value) {
+                request.metadata_mut().insert("authorization", meta_val);
+            }
+        }
+
         let resp = client
-            .append_event(req)
+            .append_event(request)
             .await
             .map_err(|e| e.to_string())?
             .into_inner();

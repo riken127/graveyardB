@@ -48,6 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         storage,
         config.cluster_nodes.clone(),
         config.node_id,
+        config.auth_token.clone(),
     ));
 
     // 3. gRPC Service
@@ -56,10 +57,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Server listening on {}", addr);
 
-    Server::builder()
-        .add_service(EventStoreServer::new(service))
-        .serve(addr)
-        .await?;
+    let mut builder = Server::builder();
+
+    if let Some(token) = config.auth_token.clone() {
+        println!("Authentication enabled with Bearer Token.");
+        let interceptor = graveyar_db::grpc::auth::AuthInterceptor::new(token);
+        builder
+            .add_service(EventStoreServer::with_interceptor(service, interceptor))
+            .serve(addr)
+            .await?;
+    } else {
+        println!("Authentication DISABLED (no AUTH_TOKEN configured).");
+        builder
+            .add_service(EventStoreServer::new(service))
+            .serve(addr)
+            .await?;
+    }
 
     Ok(())
 }
