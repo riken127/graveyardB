@@ -94,7 +94,7 @@ impl EventPipeline {
             resp_rx.await.map_err(|e| e.to_string())?
         } else {
             // Remote Forwarding
-            // tracing::info!("Forwarding stream {} to {}", stream_id, target_node);
+
             self.cluster_client.forward_append(&target_node, stream_id, events, expected_version).await
         }
     }
