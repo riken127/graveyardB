@@ -7,6 +7,8 @@ pub struct Config {
     pub request_timeout: Duration,
     pub node_id: u64,
     pub cluster_nodes: Vec<String>,
+    pub port: u16,
+    pub db_path: String,
 }
 
 impl Config {
@@ -32,12 +34,22 @@ impl Config {
             .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
             .unwrap_or_else(|| vec!["127.0.0.1:50051".to_string()]); // Default single node
 
+        let port = env::var("PORT")
+            .ok()
+            .and_then(|v| v.parse::<u16>().ok())
+            .unwrap_or(50051);
+        
+        // Allow configurable DB path for multi-node local run
+        let db_path = env::var("DB_PATH").unwrap_or_else(|_| "data/rocksdb".to_string());
+
         Ok(Self {
             scylla_uri,
             scylla_keyspace,
             request_timeout,
             node_id,
             cluster_nodes,
+            port,
+            db_path,
         })
     }
 }

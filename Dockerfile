@@ -2,7 +2,9 @@ FROM rust:1.92.0 AS builder
 
 WORKDIR /usr/src/app
 
-RUN apt-get update && apt-get install -y protobuf-compiler pkg-config libssl-dev git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y protobuf-compiler pkg-config libssl-dev git clang llvm-dev libclang-dev && rm -rf /var/lib/apt/lists/*
+
+
 
 COPY Cargo.toml Cargo.lock ./
 COPY build.rs ./
@@ -14,7 +16,7 @@ RUN cargo fetch
 RUN cargo build --release
 
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y ca-certificates
 
