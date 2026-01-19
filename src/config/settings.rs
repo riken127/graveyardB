@@ -1,17 +1,15 @@
 use std::{env, time::Duration};
 
-
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub scylla_uri: String,
+    pub scylla_uri: Option<String>,
     pub scylla_keyspace: String,
-    pub request_timeout: Duration
+    pub request_timeout: Duration,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, String> {
-        let scylla_uri =
-            env::var("SCYLLA_URI").map_err(|_| "SCYLLA_URI is undefined" )?;
+        let scylla_uri = env::var("SCYLLA_URI").ok();
 
         let scylla_keyspace =
             env::var("SCYLLA_KEYSPACE").map_err(|_| "SCYLLA_KEYSPACE is undefined")?;

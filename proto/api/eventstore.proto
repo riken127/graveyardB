@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package eventstore;
 
+option go_package = "github.com/riken127/graveyar_db/sdks/go/proto;eventstorepb";
+
+option java_multiple_files = true;
+option java_package = "com.eventstore.client.model";
+
+
 message Event {
     string id = 1;
     string event_type = 2;
@@ -12,6 +18,10 @@ message Event {
 message AppendEventRequest {
     string stream_id = 1;
     repeated Event events = 2;
+    // Expected version for optimistic concurrency control.
+    // -1 (or omit/0 depending on logic) can represent "any version" or "no check".
+    // For specific requirement, explicit version is needed.
+    uint64 expected_version = 3;
 }
 
 message AppendEventResponse {

@@ -1,2 +1,2 @@
-pub mod event_store;
-pub mod event;
+pub mod events;
+pub mod schemas;
