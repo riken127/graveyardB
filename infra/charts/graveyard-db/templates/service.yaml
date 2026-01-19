@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "graveyard-db.fullname" . }}
+  labels:
+    {{- include "graveyard-db.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "graveyard-db.selectorLabels" . | nindent 4 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "graveyard-db.fullname" . }}-headless
+  labels:
+    {{- include "graveyard-db.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.service.headlessPort }}
+      targetPort: {{ .Values.service.headlessPort }}
+      protocol: TCP
+      name: grpc-headless
+  selector:
+    {{- include "graveyard-db.selectorLabels" . | nindent 4 }}

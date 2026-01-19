@@ -1,0 +1,34 @@
+replicaCount: 3
+
+image:
+  repository: riken127/graveyard-db
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 50051
+  headlessPort: 50051
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: "standard"
+
+env:
+  scyllaUri: "scylla-client.scylla.svc.cluster.local:9042"
+  scyllaKeyspace: "graveyard"
+  authToken: "change-me-in-production"
+  requestTimeoutMs: 5000
