@@ -1,6 +1,6 @@
 # EventStore Java SDK
 
-This is a production-ready Java Client library for `graveyar_db`. It provides a simple, strongly-typed interface to interact with the EventStore gRPC API, with built-in support for Spring Boot, Timeouts, Async operations, and Optimistic Concurrency Control.
+Java Client library for `graveyar_db` using gRPC. Supports Spring Boot, Async operations, and Optimistic Concurrency Control.
 
 ## Features
 
