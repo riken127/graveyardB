@@ -22,7 +22,9 @@ impl Default for ClusterClient {
     fn default() -> Self {
         Self::new()
     }
+}
 
+impl ClusterClient {
     pub async fn get_client(&self, addr: &str) -> Result<EventStoreClient<Channel>, String> {
         // Fast path: read lock
         {

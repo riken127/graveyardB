@@ -128,7 +128,7 @@ impl EventStore for ScyllaStore {
             .into_rows_result()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
-        let rows = rows_result
+        let mut rows = rows_result
             .rows::<(String, uuid::Uuid, String, Vec<u8>, i64)>()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
