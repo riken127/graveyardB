@@ -1,6 +1,6 @@
 # EventStore TypeScript SDK
 
-Production-ready TypeScript Client for `graveyar_db`. Adheres to the standardization spec with high-performance gRPC, strict Schema Constraints, and Async/Await support.
+TypeScript Client for `graveyar_db`. Supports gRPC, Decorator-based Schemas, and Async/Await.
 
 ## Features
 
