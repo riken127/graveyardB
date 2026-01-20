@@ -7,23 +7,48 @@ option go_package = "github.com/riken127/graveyar_db/sdks/go/proto;eventstorepb"
 option java_multiple_files = true;
 option java_package = "com.eventstore.client.model";
 
+// --- Event Definitions ---
 
+/**
+ * Represents a single immutable event in the system.
+ */
 message Event {
+    // Unique identifier for the event (UUID).
     string id = 1;
+    
+    // Type of the event (e.g., "UserCreated", "OrderPlaced").
+    // Used for schema validation and routing.
     string event_type = 2;
+    
+    // The actual event data, typically JSON serialized (or other formats).
+    // Validated against Registered Schema if applicable.
     bytes payload = 3;
+    
+    // Timestamp of when the event was created/appended (server side or client side).
     uint64 timestamp = 4;
+    
+    // Key-Value metadata for context (e.g., TraceID, CausationID, SagaStep).
+    // This allows tracking transitions and provenance without modifying the payload.
     map<string, string> metadata = 5;
 }
 
+/**
+ * Request to append a batch of events to a specific stream.
+ */
 message AppendEventRequest {
+    // The ID of the stream to append to (e.g., "user-123").
     string stream_id = 1;
+    
+    // List of events to append.
     repeated Event events = 2;
-    // Expected version for optimistic concurrency control.
-    // -1 (or omit/0 depending on logic) can represent "any version" or "no check".
-    // For specific requirement, explicit version is needed.
+    
+    // Expected version for Optimistic Concurrency Control (OCC).
+    // - Use -1 (or 0 depending on impl) to disable check.
+    // - Use exact version number to ensure no concurrent modifications.
     uint64 expected_version = 3;
-    // explicit ownership: signal that this request was already forwarded
+    
+    // Internal use: signals that this request was forwarded from another node.
+    // Clients should generally set this to false.
     bool is_forwarded = 4;
 }
 
@@ -37,29 +62,44 @@ message GetEventsRequest {
 
 // --- Schema Definitions ---
 
+/**
+ * Defines the structure and constraints for an Event Type.
+ */
 message Schema {
     string name = 1;
     map<string, Field> fields = 2;
 }
 
+/**
+ * Defines a field within a Schema.
+ */
 message Field {
     FieldType field_type = 1;
     bool nullable = 2;
+    // If true, a null value in a partial update overrides the existing value.
     bool overrides_on_null = 3;
     FieldConstraints constraints = 4;
 }
 
+/**
+ * Validation constraints for fields.
+ */
 message FieldConstraints {
     bool required = 1;
-    // For numbers
+    
+    // Numeric constraints
     optional double min_value = 2;
     optional double max_value = 3;
-    // For strings
+    
+    // String constraints
     optional int32 min_length = 4;
     optional int32 max_length = 5;
     optional string regex = 6;
 }
 
+/**
+ * Wrapper for field types, supporting primitives, enums, arrays, and nested schemas.
+ */
 message FieldType {
     enum Primitive {
         NUMBER = 0;
@@ -71,7 +111,6 @@ message FieldType {
         repeated string variants = 1;
     }
     
-    // Recursive message definition
     message Array {
         FieldType element_type = 1;
     }
@@ -102,19 +141,40 @@ message GetSchemaResponse {
     bool found = 2;
 }
 
+// --- Service Definition ---
+
+/**
+ * Core EventStore Service interface.
+ */
 service EventStore {
+    // Appends events to a stream. Enforces OCC and Schema Validation.
     rpc AppendEvent(AppendEventRequest) returns (AppendEventResponse);
+    
+    // Retrieves events from a stream.
     rpc GetEvents(GetEventsRequest) returns (stream Event);
     
-    // Schema Management
+    // --- Schema Management ---
+    
+    // Registers or updates a Schema definition.
     rpc UpsertSchema(UpsertSchemaRequest) returns (UpsertSchemaResponse);
+    
+    // Retrieves a Schema definition.
     rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
 
-    // Snapshot Management
+    // --- Snapshot Management ---
+    
+    // Saves a snapshot for a stream at a specific version.
     rpc SaveSnapshot(SaveSnapshotRequest) returns (SaveSnapshotResponse);
+    
+    // Retrieves the latest snapshot for a stream.
     rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
 }
 
+// --- Snapshot Definitions ---
+
+/**
+ * Represents a state snapshot of a stream.
+ */
 message Snapshot {
     string stream_id = 1;
     uint64 version = 2;
