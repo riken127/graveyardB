@@ -28,6 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     event_type: "StressTestEvent".to_string(),
                     payload: format!("{{\"worker\": {}, \"seq\": {}}}", i, j).into_bytes(),
                     timestamp: 0,
+                    metadata: std::collections::HashMap::new(),
                 };
 
                 let req = AppendEventRequest {

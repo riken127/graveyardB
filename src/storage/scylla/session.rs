@@ -56,6 +56,7 @@ impl ScyllaStore {
              event_type text, \
              payload blob, \
              timestamp bigint, \
+             metadata map<text, text>, \
              PRIMARY KEY (stream_id, version))",
             self.keyspace
         );
@@ -77,6 +78,10 @@ impl ScyllaStore {
             .await
             .map_err(|e| ScyllaError::QueryError(e.to_string()))?;
 
+        // Migration: Attempt to add metadata column if missing
+        let alter_table = format!("ALTER TABLE {}.events ADD metadata map<text, text>", self.keyspace);
+        let _ = self.session.query_unpaged(alter_table, &[]).await; // Ignore error if exists
+
         Ok(())
     }
 
@@ -96,7 +101,7 @@ impl EventStore for ScyllaStore {
     async fn append_event(&self, stream: &str, mut event: Event, expected_version: u64) -> Result<(), EventStoreError> {
         // Prepare query with LWT
         let query = format!(
-            "INSERT INTO {}.events (stream_id, version, id, event_type, payload, timestamp) VALUES (?, ?, ?, ?, ?, ?) IF NOT EXISTS",
+            "INSERT INTO {}.events (stream_id, version, id, event_type, payload, timestamp, metadata) VALUES (?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS",
             self.keyspace
         );
 
@@ -108,9 +113,10 @@ impl EventStore for ScyllaStore {
         let payload = event.payload.0;
         let timestamp = event.timestamp.0 as i64;
         let version = next_version as i64;
+        let metadata = event.metadata;
 
         let result = self.session
-            .query_unpaged(query, (stream, version, id, event_type_str, payload, timestamp))
+            .query_unpaged(query, (stream, version, id, event_type_str, payload, timestamp, metadata))
             .await
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
@@ -137,7 +143,7 @@ impl EventStore for ScyllaStore {
 
     async fn fetch_stream(&self, stream: &str) -> Result<Vec<Event>, EventStoreError> {
         let query = format!(
-            "SELECT stream_id, version, id, event_type, payload, timestamp FROM {}.events WHERE stream_id = ? ORDER BY version ASC",
+            "SELECT stream_id, version, id, event_type, payload, timestamp, metadata FROM {}.events WHERE stream_id = ? ORDER BY version ASC",
             self.keyspace
         );
 
@@ -152,13 +158,13 @@ impl EventStore for ScyllaStore {
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
         let mut rows = rows_result
-            .rows::<(String, i64, uuid::Uuid, String, Vec<u8>, i64)>()
+            .rows::<(String, i64, uuid::Uuid, String, Vec<u8>, i64, Option<std::collections::HashMap<String, String>>)>()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
         let mut events = Vec::new();
 
-        for row in rows {
-            let (_stream_id, version, id, event_type_str, payload, timestamp) =
+        while let Some(row) = rows.next() {
+            let (_stream_id, version, id, event_type_str, payload, timestamp, metadata) =
                 row.map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
             // Reconstruct Event
@@ -176,9 +182,9 @@ impl EventStore for ScyllaStore {
                 event_type,
                 payload: crate::domain::events::event_kind::EventPayload(payload),
                 timestamp: crate::domain::events::event_kind::Timestamp(timestamp as u64),
+                metadata: metadata.unwrap_or_default(),
             });
         }
-
         Ok(events)
     }
 

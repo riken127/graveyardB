@@ -23,6 +23,7 @@ impl TryFrom<proto::Event> for Event {
             event_type,
             payload: EventPayload(proto_event.payload),
             timestamp: Timestamp(proto_event.timestamp),
+            metadata: proto_event.metadata,
         })
     }
 }
@@ -35,6 +36,7 @@ impl From<Event> for proto::Event {
             event_type: event_type_str,
             payload: domain_event.payload.0,
             timestamp: domain_event.timestamp.0,
+            metadata: domain_event.metadata,
         }
     }
 }

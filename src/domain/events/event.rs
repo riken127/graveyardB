@@ -10,6 +10,7 @@ pub struct Event {
     pub event_type: EventKind,
     pub payload: EventPayload,
     pub timestamp: Timestamp,
+    pub metadata: std::collections::HashMap<String, String>,
 }
 
 impl Event {
@@ -21,6 +22,7 @@ impl Event {
             event_type,
             payload,
             timestamp: Timestamp::now(),
+            metadata: std::collections::HashMap::new(),
         }
     }
 }
