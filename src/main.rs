@@ -15,12 +15,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Setup OpenTelemetry
-    // Note: Assuming opentelemetry_otlp 0.27 uses SpanExporter builder or new_exporter is hidden.
-    // Try SpanExporter::builder().
-    // If that fails, I'll fallback to basic logging. But I must try.
-    
-    // Attempting manual setup:
+    // Setup OpenTelemetry Tracing (OTLP over HTTP)
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_http()
         .build()?;
