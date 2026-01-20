@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Event {
     pub id: EventId,
     pub stream_id: String,
+    pub sequence_number: u64,
     pub event_type: EventKind,
     pub payload: EventPayload,
     pub timestamp: Timestamp,
@@ -16,6 +17,7 @@ impl Event {
         Self {
             id: EventId::new(),
             stream_id: stream_id.into(),
+            sequence_number: 0, // Assigned by storage
             event_type,
             payload,
             timestamp: Timestamp::now(),

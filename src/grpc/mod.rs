@@ -48,11 +48,25 @@ impl EventStore for GrpcService {
             domain_events.push(event);
         }
 
-        let success = self
-            .pipeline
-            .append_event(&stream_id, domain_events, expected_version)
-            .await
-            .map_err(Status::internal)?;
+        let is_forwarded = req.is_forwarded;
+
+        let result = if is_forwarded {
+            self.pipeline
+                .append_event_as_owner(&stream_id, domain_events, expected_version)
+                .await
+        } else {
+            self.pipeline
+                .append_event(&stream_id, domain_events, expected_version)
+                .await
+        };
+
+        let success = result.map_err(|e| {
+            if e.contains("NotOwnerError") {
+                Status::failed_precondition(e)
+            } else {
+                Status::internal(e)
+            }
+        })?;
 
         Ok(Response::new(AppendEventResponse { success }))
     }

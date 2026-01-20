@@ -9,13 +9,15 @@ pub enum EventStoreError {
     StorageError(String),
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_cbor::Error),
+    #[error("Concurrency conflict: expected version {expected}, actual {actual}")]
+    ConcurrencyError { expected: u64, actual: u64 },
     #[error("Unknown error: {0}")]
     Unknown(String),
 }
 
 #[async_trait]
 pub trait EventStore: Send + Sync {
-    async fn append_event(&self, stream: &str, event: Event) -> Result<(), EventStoreError>;
+    async fn append_event(&self, stream: &str, event: Event, expected_version: u64) -> Result<(), EventStoreError>;
     async fn fetch_stream(&self, stream: &str) -> Result<Vec<Event>, EventStoreError>;
     async fn upsert_schema(
         &self,

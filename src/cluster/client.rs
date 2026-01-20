@@ -73,6 +73,7 @@ impl ClusterClient {
             stream_id: stream_id.to_string(),
             events: proto_events,
             expected_version: expected_version as u64,
+            is_forwarded: true,
         };
 
         let mut request = tonic::Request::new(req);

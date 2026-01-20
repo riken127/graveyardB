@@ -10,6 +10,8 @@ pub struct Config {
     pub port: u16,
     pub db_path: String,
     pub auth_token: Option<String>,
+    pub tls_cert_path: Option<String>,
+    pub tls_key_path: Option<String>,
 }
 
 impl Config {
@@ -44,6 +46,8 @@ impl Config {
         let db_path = env::var("DB_PATH").unwrap_or_else(|_| "data/rocksdb".to_string());
 
         let auth_token = env::var("AUTH_TOKEN").ok();
+        let tls_cert_path = env::var("TLS_CERT_PATH").ok();
+        let tls_key_path = env::var("TLS_KEY_PATH").ok();
 
         Ok(Self {
             scylla_uri,
@@ -54,6 +58,8 @@ impl Config {
             port,
             db_path,
             auth_token,
+            tls_cert_path,
+            tls_key_path,
         })
     }
 }

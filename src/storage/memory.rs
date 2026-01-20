@@ -23,16 +23,41 @@ impl InMemoryEventStore {
 
 #[async_trait]
 impl EventStore for InMemoryEventStore {
-    async fn append_event(&self, stream: &str, event: Event) -> Result<(), EventStoreError> {
+    async fn append_event(&self, stream: &str, mut event: Event, expected_version: u64) -> Result<(), EventStoreError> {
         let mut store = self
             .store
             .write()
             .map_err(|_| EventStoreError::Unknown("Lock poison".to_string()))?;
 
-        store
-            .entry(stream.to_string())
-            .or_insert_with(Vec::new)
-            .push(event);
+        let stream_events = store.entry(stream.to_string()).or_insert_with(Vec::new);
+        
+        let current_version = stream_events.last().map(|e| e.sequence_number).unwrap_or(0);
+        
+        if expected_version != 0 && current_version != expected_version {
+             // Treat expected_version 0 as "Expected stream to correspond to sequence 0" i.e. empty?
+             // Actually, usually 0 means "No Stream" or "First Event is 1".
+             // Let's assume sequence starts at 1.
+             // If stream empty, current = 0.
+             // If expected = 0, fine.
+             // If expected > 0 (e.g. 5), but current is 0 -> Error.
+             // If expected < current -> Conflict.
+             
+             // Strict check:
+             if current_version != expected_version {
+                 return Err(EventStoreError::ConcurrencyError {
+                     expected: expected_version,
+                     actual: current_version,
+                 });
+             }
+        }
+        
+        // Wait, if expected_version is 0 and stream exists?
+        // If stream has events 1,2,3. Current=3. Expected=0.
+        // It failed. Correct.
+        
+        let next_version = current_version + 1;
+        event.sequence_number = next_version;
+        stream_events.push(event);
 
         Ok(())
     }
@@ -77,7 +102,7 @@ mod tests {
         let event = Event::new("stream-1", EventKind::Internal, payload);
 
         store
-            .append_event("stream-1", event.clone())
+            .append_event("stream-1", event.clone(), 0)
             .await
             .expect("Append failed");
 

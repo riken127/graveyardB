@@ -22,6 +22,8 @@ message AppendEventRequest {
     // -1 (or omit/0 depending on logic) can represent "any version" or "no check".
     // For specific requirement, explicit version is needed.
     uint64 expected_version = 3;
+    // explicit ownership: signal that this request was already forwarded
+    bool is_forwarded = 4;
 }
 
 message AppendEventResponse {

@@ -18,7 +18,8 @@ impl TryFrom<proto::Event> for Event {
         use std::str::FromStr;
         Ok(Event {
             id: EventId(uuid::Uuid::from_str(&proto_event.id).map_err(|e| e.to_string())?),
-            stream_id: String::new(), // Placeholder, caller context usually provides this
+            stream_id: String::new(),
+            sequence_number: 0,
             event_type,
             payload: EventPayload(proto_event.payload),
             timestamp: Timestamp(proto_event.timestamp),

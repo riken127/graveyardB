@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     stream_id: stream_id.clone(),
                     events: vec![event],
                     expected_version: u64::MAX, // Casts to -1 in backend (no OCC)
+                    is_forwarded: false,
                 };
 
                 if let Err(e) = client.append_event(req).await {

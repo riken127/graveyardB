@@ -9,7 +9,7 @@ use graveyar_db::{
     },
 };
 use std::sync::Arc;
-use tonic::transport::Server;
+use tonic::transport::{Identity, Server, ServerTlsConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -58,6 +58,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Server listening on {}", addr);
 
     let mut builder = Server::builder();
+
+    if let (Some(cert_path), Some(key_path)) = (config.tls_cert_path, config.tls_key_path) {
+        println!("TLS enabled. Loading cert from {} and key from {}", cert_path, key_path);
+        let cert = tokio::fs::read(cert_path).await?;
+        let key = tokio::fs::read(key_path).await?;
+        let identity = Identity::from_pem(cert, key);
+
+        builder = builder.tls_config(ServerTlsConfig::new().identity(identity))?;
+    } else {
+        println!("TLS DISABLED (missing TLS_CERT_PATH or TLS_KEY_PATH).");
+    }
 
     if let Some(token) = config.auth_token.clone() {
         println!("Authentication enabled with Bearer Token.");
