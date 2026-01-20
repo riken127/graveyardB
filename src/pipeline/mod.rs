@@ -108,6 +108,18 @@ impl EventPipeline {
             ));
         }
 
+        // Schema Validation (Soft Fail)
+        for event in &events {
+            let type_str = format!("{:?}", event.event_type);
+            // Optimization: Only check if looks like custom event or check existence
+            if let Ok(Some(schema)) = self.storage.get_schema(&type_str).await {
+                if let Err(errs) = crate::domain::schema::validation::validate_event_payload(&event.payload.0, &schema) {
+                    tracing::warn!(stream_id = %stream_id, event_type = %type_str, errors = ?errs, "Schema validation failed (Soft Fail)");
+                    // To enable Hard Fail: return Err(format!("Schema Validation Error: {:?}", errs));
+                }
+            }
+        }
+
         // 2. Local Processing via Sharded Workers
         let mut hasher = DefaultHasher::new();
         stream_id.hash(&mut hasher);
