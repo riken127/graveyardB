@@ -97,3 +97,7 @@ pub fn validate_event_payload(payload: &[u8], schema: &Schema) -> Result<(), Vec
         Err(errors)
     }
 }
+
+// Include tests
+#[path = "./validation_tests.rs"]
+mod tests;

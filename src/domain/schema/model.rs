@@ -15,7 +15,7 @@ pub struct Field {
     pub constraints: Option<FieldConstraints>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct FieldConstraints {
     pub required: bool,
     pub min_value: Option<f64>,
