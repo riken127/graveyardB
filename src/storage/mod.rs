@@ -3,3 +3,4 @@ pub mod hybrid;
 pub mod memory;
 pub mod rocksdb;
 pub mod scylla;
+pub mod snapshot;

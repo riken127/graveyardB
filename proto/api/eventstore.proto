@@ -109,4 +109,32 @@ service EventStore {
     // Schema Management
     rpc UpsertSchema(UpsertSchemaRequest) returns (UpsertSchemaResponse);
     rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+
+    // Snapshot Management
+    rpc SaveSnapshot(SaveSnapshotRequest) returns (SaveSnapshotResponse);
+    rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+}
+
+message Snapshot {
+    string stream_id = 1;
+    uint64 version = 2;
+    bytes payload = 3;
+    uint64 timestamp = 4;
+}
+
+message SaveSnapshotRequest {
+    Snapshot snapshot = 1;
+}
+
+message SaveSnapshotResponse {
+    bool success = 1;
+}
+
+message GetSnapshotRequest {
+    string stream_id = 1;
+}
+
+message GetSnapshotResponse {
+    Snapshot snapshot = 1;
+    bool found = 2;
 }

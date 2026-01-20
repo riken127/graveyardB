@@ -51,8 +51,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.auth_token.clone(),
     ));
 
-    // 3. gRPC Service
-    let service = GrpcService::new(pipeline);
+    // 3. Snapshot Store (Local RocksDB)
+    let snapshot_db_path = format!("{}_snapshots", config.db_path);
+    let mut opts = rocksdb::Options::default();
+    opts.create_if_missing(true);
+    let snapshot_db = Arc::new(rocksdb::DB::open(&opts, &snapshot_db_path).expect("Failed to open Snapshot DB"));
+    let snapshot_store = Arc::new(graveyar_db::storage::rocksdb::snapshot_store::RocksSnapshotStore::new(snapshot_db));
+
+    // 4. gRPC Service
+    let service = GrpcService::new(pipeline, snapshot_store);
     let addr = format!("0.0.0.0:{}", config.port).parse()?;
 
     println!("Server listening on {}", addr);

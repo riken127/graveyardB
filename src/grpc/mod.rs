@@ -15,11 +15,18 @@ pub mod auth;
 
 pub struct GrpcService {
     pipeline: Arc<EventPipeline>,
+    snapshot_store: Arc<dyn crate::storage::snapshot::SnapshotStore>,
 }
 
 impl GrpcService {
-    pub fn new(pipeline: Arc<EventPipeline>) -> Self {
-        Self { pipeline }
+    pub fn new(
+        pipeline: Arc<EventPipeline>,
+        snapshot_store: Arc<dyn crate::storage::snapshot::SnapshotStore>,
+    ) -> Self {
+        Self {
+            pipeline,
+            snapshot_store,
+        }
     }
 }
 
@@ -144,6 +151,59 @@ impl EventStore for GrpcService {
             }
             None => Ok(Response::new(GetSchemaResponse {
                 schema: None,
+                found: false,
+            })),
+        }
+    }
+
+    async fn save_snapshot(
+        &self,
+        request: Request<crate::api::SaveSnapshotRequest>,
+    ) -> Result<Response<crate::api::SaveSnapshotResponse>, Status> {
+        let req = request.into_inner();
+        let proto_snap = req.snapshot.ok_or_else(|| Status::invalid_argument("Missing snapshot"))?;
+        
+        let snapshot = crate::storage::snapshot::Snapshot {
+            stream_id: proto_snap.stream_id,
+            version: proto_snap.version,
+            payload: proto_snap.payload,
+            timestamp: proto_snap.timestamp,
+        };
+
+        self.snapshot_store
+            .save_snapshot(snapshot)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(crate::api::SaveSnapshotResponse { success: true }))
+    }
+
+    async fn get_snapshot(
+        &self,
+        request: Request<crate::api::GetSnapshotRequest>,
+    ) -> Result<Response<crate::api::GetSnapshotResponse>, Status> {
+        let req = request.into_inner();
+        
+        let snap_opt = self.snapshot_store
+            .get_snapshot(&req.stream_id)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        match snap_opt {
+            Some(s) => {
+                let proto_snap = crate::api::Snapshot {
+                    stream_id: s.stream_id,
+                    version: s.version,
+                    payload: s.payload,
+                    timestamp: s.timestamp,
+                };
+                Ok(Response::new(crate::api::GetSnapshotResponse {
+                    snapshot: Some(proto_snap),
+                    found: true,
+                }))
+            }
+            None => Ok(Response::new(crate::api::GetSnapshotResponse {
+                snapshot: None,
                 found: false,
             })),
         }
