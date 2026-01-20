@@ -177,7 +177,7 @@ impl EventStore for ScyllaStore {
             .into_rows_result()
             .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
 
-        let mut rows = rows_result
+        let rows = rows_result
             .rows::<(
                 String,
                 i64,
