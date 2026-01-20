@@ -11,9 +11,37 @@ use graveyar_db::{
 use std::sync::Arc;
 use tonic::transport::{Identity, Server, ServerTlsConfig};
 
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
+    // Setup OpenTelemetry
+    // Note: Assuming opentelemetry_otlp 0.27 uses SpanExporter builder or new_exporter is hidden.
+    // Try SpanExporter::builder().
+    // If that fails, I'll fallback to basic logging. But I must try.
+    
+    // Attempting manual setup:
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_http()
+        .build()?;
+        
+    let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
+        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+        .build();
+        
+    let tracer = opentelemetry::trace::TracerProvider::tracer(&tracer_provider, "graveyar_db");
+    
+    // Set global provider
+    opentelemetry::global::set_tracer_provider(tracer_provider);
+
+    // Create a tracing layer with the configured tracer
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    // Use the tracing subscriber to process traces
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(telemetry)
+        .init();
 
     let config = config::settings::Config::from_env()?;
 
