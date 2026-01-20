@@ -14,6 +14,13 @@ use tokio::sync::{mpsc, oneshot};
 
 const NUM_WORKERS: usize = 32;
 
+/// The primary event processing pipeline.
+///
+/// `EventPipeline` is responsibility for:
+/// 1. Routing requests to the correct node (Owner) in the cluster/shard.
+/// 2. Validating events against schemas (Optional).
+/// 3. Serializing write requests per stream to ensure linearizability via workers.
+/// 4. Delegating persistence to the `EventStore`.
 pub struct EventPipeline {
     storage: Arc<dyn EventStore + Send + Sync>,
     workers: Vec<mpsc::Sender<PipelineCommand>>,
@@ -23,6 +30,7 @@ pub struct EventPipeline {
 }
 
 impl EventPipeline {
+    /// Creates a new pipeline instance, initializing worker pools and cluster topology.
     pub fn new(
         storage: Arc<dyn EventStore + Send + Sync>,
         cluster_nodes: Vec<String>,
@@ -68,23 +76,23 @@ impl EventPipeline {
         }
     }
 
+    /// Appends events to a stream.
+    ///
+    /// This method acts as the Gateway/Router. It determines if the current node
+    /// owns the stream. If so, it processes locally. If not, it forwards the request
+    /// to the correct owner via gRPC.
     #[tracing::instrument(skip(self, events), fields(stream_id = %stream_id, event_count = events.len()))]
-    /// Entry point for clients: Routes request to owner (Local or Remote)
     pub async fn append_event(
         &self,
         stream_id: &str,
         events: Vec<Event>,
         expected_version: i64,
     ) -> Result<bool, String> {
-        // 1. Determine Owner
         let owner = self.topology.get_owner(stream_id);
         
-        // 2. Route
         if owner.node_addr == self.self_addr {
-            // Local processing (we are owner)
             self.append_event_as_owner(stream_id, events, expected_version).await
         } else {
-            // Remote Forwarding
             self.cluster_client
                 .forward_append(&owner.node_addr, stream_id, events, expected_version)
                 .await
