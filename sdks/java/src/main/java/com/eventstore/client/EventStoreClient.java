@@ -114,4 +114,46 @@ public class EventStoreClient {
                 .withDeadlineAfter(config.getTimeoutMs(), TimeUnit.MILLISECONDS)
                 .upsertSchema(request);
     }
+
+    /**
+     * Saves a snapshot.
+     */
+    public boolean saveSnapshot(String streamId, long version, byte[] payload, long timestamp) {
+        com.eventstore.client.model.Snapshot snapshot = com.eventstore.client.model.Snapshot.newBuilder()
+                .setStreamId(streamId)
+                .setVersion(version)
+                .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
+                .setTimestamp(timestamp)
+                .build();
+
+        com.eventstore.client.model.SaveSnapshotRequest request = com.eventstore.client.model.SaveSnapshotRequest.newBuilder()
+                .setSnapshot(snapshot)
+                .build();
+
+        com.eventstore.client.model.SaveSnapshotResponse response = blockingStub
+                .withDeadlineAfter(config.getTimeoutMs(), TimeUnit.MILLISECONDS)
+                .saveSnapshot(request);
+        
+        return response.getSuccess();
+    }
+
+    /**
+     * Gets a snapshot.
+     * @return Snapshot or null if not found.
+     */
+    public com.eventstore.client.model.Snapshot getSnapshot(String streamId) {
+        com.eventstore.client.model.GetSnapshotRequest request = com.eventstore.client.model.GetSnapshotRequest.newBuilder()
+                .setStreamId(streamId)
+                .build();
+
+        com.eventstore.client.model.GetSnapshotResponse response = blockingStub
+                .withDeadlineAfter(config.getTimeoutMs(), TimeUnit.MILLISECONDS)
+                .getSnapshot(request);
+        
+        if (response.getFound()) {
+            return response.getSnapshot();
+        } else {
+            return null;
+        }
+    }
 }
