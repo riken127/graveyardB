@@ -35,27 +35,35 @@ pub fn validate_event_payload(payload: &[u8], schema: &Schema) -> Result<(), Vec
 
         // Required Check
         if val.is_none() || val.unwrap().is_null() {
-             if let Some(constraints) = &field_def.constraints {
-                 if constraints.required {
-                     errors.push(ValidationError::MissingField(field_name.clone()));
-                 }
-             }
-             continue; // If missing and not required, skip further checks
+            if let Some(constraints) = &field_def.constraints {
+                if constraints.required {
+                    errors.push(ValidationError::MissingField(field_name.clone()));
+                }
+            }
+            continue; // If missing and not required, skip further checks
         }
-        
+
         let val = val.unwrap();
 
         // Type Check
-        match &field_def.field_type {
-            FieldType::Primitive(p) => {
-                match p {
-                    PrimitiveType::String => if !val.is_string() { errors.push(ValidationError::InvalidType(field_name.clone())); },
-                    PrimitiveType::Number => if !val.is_number() { errors.push(ValidationError::InvalidType(field_name.clone())); },
-                    PrimitiveType::Boolean => if !val.is_boolean() { errors.push(ValidationError::InvalidType(field_name.clone())); },
+        if let FieldType::Primitive(p) = &field_def.field_type {
+            match p {
+                PrimitiveType::String => {
+                    if !val.is_string() {
+                        errors.push(ValidationError::InvalidType(field_name.clone()));
+                    }
                 }
-            },
-            // Simplified check for complex types for MVP
-            _ => {},
+                PrimitiveType::Number => {
+                    if !val.is_number() {
+                        errors.push(ValidationError::InvalidType(field_name.clone()));
+                    }
+                }
+                PrimitiveType::Boolean => {
+                    if !val.is_boolean() {
+                        errors.push(ValidationError::InvalidType(field_name.clone()));
+                    }
+                }
+            }
         }
 
         // Constraints Check
