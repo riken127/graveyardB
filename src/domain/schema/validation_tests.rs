@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::domain::schema::validation::{validate_event_payload, ValidationError};
     use crate::domain::schema::model::{Field, FieldConstraints, FieldType, PrimitiveType, Schema};
+    use crate::domain::schema::validation::{validate_event_payload, ValidationError};
     use std::collections::HashMap;
 
     #[test]

@@ -161,8 +161,10 @@ impl EventStore for GrpcService {
         request: Request<crate::api::SaveSnapshotRequest>,
     ) -> Result<Response<crate::api::SaveSnapshotResponse>, Status> {
         let req = request.into_inner();
-        let proto_snap = req.snapshot.ok_or_else(|| Status::invalid_argument("Missing snapshot"))?;
-        
+        let proto_snap = req
+            .snapshot
+            .ok_or_else(|| Status::invalid_argument("Missing snapshot"))?;
+
         let snapshot = crate::storage::snapshot::Snapshot {
             stream_id: proto_snap.stream_id,
             version: proto_snap.version,
@@ -175,7 +177,9 @@ impl EventStore for GrpcService {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        Ok(Response::new(crate::api::SaveSnapshotResponse { success: true }))
+        Ok(Response::new(crate::api::SaveSnapshotResponse {
+            success: true,
+        }))
     }
 
     async fn get_snapshot(
@@ -183,8 +187,9 @@ impl EventStore for GrpcService {
         request: Request<crate::api::GetSnapshotRequest>,
     ) -> Result<Response<crate::api::GetSnapshotResponse>, Status> {
         let req = request.into_inner();
-        
-        let snap_opt = self.snapshot_store
+
+        let snap_opt = self
+            .snapshot_store
             .get_snapshot(&req.stream_id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;

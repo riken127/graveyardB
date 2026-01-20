@@ -19,13 +19,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_http()
         .build()?;
-        
+
     let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
         .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
         .build();
-        
+
     let tracer = opentelemetry::trace::TracerProvider::tracer(&tracer_provider, "graveyar_db");
-    
+
     // Set global provider
     opentelemetry::global::set_tracer_provider(tracer_provider);
 
@@ -78,8 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let snapshot_db_path = format!("{}_snapshots", config.db_path);
     let mut opts = rocksdb::Options::default();
     opts.create_if_missing(true);
-    let snapshot_db = Arc::new(rocksdb::DB::open(&opts, &snapshot_db_path).expect("Failed to open Snapshot DB"));
-    let snapshot_store = Arc::new(graveyar_db::storage::rocksdb::snapshot_store::RocksSnapshotStore::new(snapshot_db));
+    let snapshot_db =
+        Arc::new(rocksdb::DB::open(&opts, &snapshot_db_path).expect("Failed to open Snapshot DB"));
+    let snapshot_store = Arc::new(
+        graveyar_db::storage::rocksdb::snapshot_store::RocksSnapshotStore::new(snapshot_db),
+    );
 
     // 4. gRPC Service
     let service = GrpcService::new(pipeline, snapshot_store);
@@ -90,7 +93,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = Server::builder();
 
     if let (Some(cert_path), Some(key_path)) = (config.tls_cert_path, config.tls_key_path) {
-        println!("TLS enabled. Loading cert from {} and key from {}", cert_path, key_path);
+        println!(
+            "TLS enabled. Loading cert from {} and key from {}",
+            cert_path, key_path
+        );
         let cert = tokio::fs::read(cert_path).await?;
         let key = tokio::fs::read(key_path).await?;
         let identity = Identity::from_pem(cert, key);

@@ -67,10 +67,10 @@ mod tests {
     fn test_epoch_usage() {
         let nodes = vec!["A".to_string(), "B".to_string()];
         let t1 = ClusterTopology::new(nodes.clone(), 10);
-        
+
         let o1 = t1.get_owner("stream-x");
         assert_eq!(o1.epoch, 10);
-        
+
         // New topology with higher epoch
         let t2 = ClusterTopology::new(nodes, 20);
         let o2 = t2.get_owner("stream-x");
@@ -82,14 +82,14 @@ mod tests {
     fn test_distribution_change() {
         let nodes1 = vec!["A".to_string(), "B".to_string()];
         let t1 = ClusterTopology::new(nodes1, 1);
-        
+
         let nodes2 = vec!["A".to_string(), "B".to_string(), "C".to_string()];
         let t2 = ClusterTopology::new(nodes2, 2);
-        
+
         // Distribution changes, but epoch tracks it
         let o1 = t1.get_owner("stream-1");
         let o2 = t2.get_owner("stream-1");
-        
+
         // Usually, hashes differ with node count.
         // We just assert they return valid owners from their respective sets.
         assert!(t1.get_all_nodes().contains(&o1.node_addr));

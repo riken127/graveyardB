@@ -41,15 +41,22 @@ impl Worker {
         // 1. Resolve expected version
         let mut current_version_u64 = if expected_version == -1 {
             // "Any" version: Fetch tail to determine next
-             let current_events = self
+            let current_events = self
                 .store
                 .fetch_stream(stream_id)
                 .await
                 .map_err(|e| e.to_string())?;
-             current_events.last().map(|e| e.sequence_number).unwrap_or(0)
+            current_events
+                .last()
+                .map(|e| e.sequence_number)
+                .unwrap_or(0)
         } else {
-             // Specific version expected
-             if expected_version < 0 { 0 } else { expected_version as u64 }
+            // Specific version expected
+            if expected_version < 0 {
+                0
+            } else {
+                expected_version as u64
+            }
         };
 
         // 2. Prepare events
@@ -62,7 +69,11 @@ impl Worker {
         // To fix this proper, EventStore needs transaction support.
         // But with OCC, we at least won't corrupt data, just stop.
         for event in events.drain(..) {
-            match self.store.append_event(stream_id, event, current_version_u64).await {
+            match self
+                .store
+                .append_event(stream_id, event, current_version_u64)
+                .await
+            {
                 Ok(_) => {
                     current_version_u64 += 1;
                 }

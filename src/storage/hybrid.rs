@@ -18,9 +18,18 @@ impl HybridEventStore {
 
 #[async_trait]
 impl EventStore for HybridEventStore {
-    async fn append_event(&self, stream: &str, event: Event, expected_version: u64) -> Result<(), EventStoreError> {
+    async fn append_event(
+        &self,
+        stream: &str,
+        event: Event,
+        expected_version: u64,
+    ) -> Result<(), EventStoreError> {
         // Try Primary
-        match self.primary.append_event(stream, event.clone(), expected_version).await {
+        match self
+            .primary
+            .append_event(stream, event.clone(), expected_version)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => {
                 warn!(
@@ -28,7 +37,9 @@ impl EventStore for HybridEventStore {
                     e
                 );
                 // Try Fallback
-                self.fallback.append_event(stream, event, expected_version).await
+                self.fallback
+                    .append_event(stream, event, expected_version)
+                    .await
             }
         }
     }

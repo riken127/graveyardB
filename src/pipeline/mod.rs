@@ -52,7 +52,7 @@ impl EventPipeline {
 
         // Initialize Topology with Epoch 0 (MVP Static)
         let topology = ClusterTopology::new(cluster_nodes.clone(), 0);
-        
+
         // Determine self address based on ID, safe fallback if config is weird
         let sorted_nodes = topology.get_all_nodes();
         let self_addr = if (self_node_id as usize) < sorted_nodes.len() {
@@ -89,9 +89,10 @@ impl EventPipeline {
         expected_version: i64,
     ) -> Result<bool, String> {
         let owner = self.topology.get_owner(stream_id);
-        
+
         if owner.node_addr == self.self_addr {
-            self.append_event_as_owner(stream_id, events, expected_version).await
+            self.append_event_as_owner(stream_id, events, expected_version)
+                .await
         } else {
             self.cluster_client
                 .forward_append(&owner.node_addr, stream_id, events, expected_version)
@@ -99,7 +100,7 @@ impl EventPipeline {
         }
     }
 
-    /// Strict Entry point: Only processes if WE are the owner. 
+    /// Strict Entry point: Only processes if WE are the owner.
     /// Used for forwarded requests or strict validation.
     pub async fn append_event_as_owner(
         &self,
@@ -121,7 +122,10 @@ impl EventPipeline {
             let type_str = format!("{:?}", event.event_type);
             // Optimization: Only check if looks like custom event or check existence
             if let Ok(Some(schema)) = self.storage.get_schema(&type_str).await {
-                if let Err(errs) = crate::domain::schema::validation::validate_event_payload(&event.payload.0, &schema) {
+                if let Err(errs) = crate::domain::schema::validation::validate_event_payload(
+                    &event.payload.0,
+                    &schema,
+                ) {
                     tracing::warn!(stream_id = %stream_id, event_type = %type_str, errors = ?errs, "Schema validation failed (Soft Fail)");
                     // To enable Hard Fail: return Err(format!("Schema Validation Error: {:?}", errs));
                 }

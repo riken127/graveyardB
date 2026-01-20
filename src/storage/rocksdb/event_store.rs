@@ -29,18 +29,27 @@ impl RocksEventStore {
 
 #[async_trait]
 impl EventStore for RocksEventStore {
-    async fn append_event(&self, stream: &str, mut event: Event, expected_version: u64) -> Result<(), EventStoreError> {
+    async fn append_event(
+        &self,
+        stream: &str,
+        mut event: Event,
+        expected_version: u64,
+    ) -> Result<(), EventStoreError> {
         // Enforce serial access for atomicity check
         let _guard = self.write_lock.lock().await;
 
         let meta_key = format!("meta:{}", stream);
-        
+
         // 1. Check current version
-        let current_version = match self.db.get(&meta_key).map_err(|e| EventStoreError::StorageError(e.to_string()))? {
+        let current_version = match self
+            .db
+            .get(&meta_key)
+            .map_err(|e| EventStoreError::StorageError(e.to_string()))?
+        {
             Some(v_bytes) => {
                 let v_str = String::from_utf8_lossy(&v_bytes);
                 v_str.parse::<u64>().unwrap_or(0)
-            },
+            }
             None => 0,
         };
 
@@ -54,23 +63,25 @@ impl EventStore for RocksEventStore {
         // 2. Prepare atomic write batch
         let next_version = current_version + 1;
         event.sequence_number = next_version;
-        
+
         // Stream key now includes sequence number for sorting: stream:{stream_id}:{seq_num}
         // Previously: stream:{stream_id}:{uuid}.
         // We should use BigEndian bytes for seq_num to sort correctly in RocksDB.
-        let key = format!("stream:{}:{:020}", stream, next_version); 
+        let key = format!("stream:{}:{:020}", stream, next_version);
         // Note: {:020} creates a sortable string representation of u64, but binary key is better?
         // Let's stick to string keys for debuggability as established, but pad it!
-        
+
         let value = serde_cbor::to_vec(&event)?;
-        
+
         let mut batch = rocksdb::WriteBatch::default();
         batch.put(key, value);
         batch.put(meta_key, next_version.to_string());
 
         // 3. Commit
-        self.db.write(batch).map_err(|e| EventStoreError::StorageError(e.to_string()))?;
-        
+        self.db
+            .write(batch)
+            .map_err(|e| EventStoreError::StorageError(e.to_string()))?;
+
         Ok(())
     }
 
@@ -101,26 +112,26 @@ impl EventStore for RocksEventStore {
     async fn upsert_schema(&self, schema: Schema) -> Result<(), EventStoreError> {
         // Schema upsert via event stream for consistency
         let key = format!("schema:{}", schema.name);
-        
+
         // Fetch current version for safely appending log
         // This is tricky without transaction across stream+schema.
-        // For RocksDB fallback, we'll cheat slightly and just lock generic schema updates? 
+        // For RocksDB fallback, we'll cheat slightly and just lock generic schema updates?
         // Or better: Append first, then update schema view.
         // Same as Scylla.
-        
+
         let stream = format!("$schema:{}", schema.name);
         let events = self.fetch_stream(&stream).await?;
         let ver = events.last().map(|e| e.sequence_number).unwrap_or(0);
-        
+
         let payload_bytes = serde_cbor::to_vec(&schema)?;
         let event = Event::new(
             &stream,
             crate::domain::events::event_kind::EventKind::Schematic,
             crate::domain::events::event_kind::EventPayload(payload_bytes.clone()),
         );
-        
+
         self.append_event(&stream, event, ver).await?;
-        
+
         // Update projection
         self.db
             .put(key, payload_bytes)
@@ -231,10 +242,8 @@ mod tests {
             .expect("should work");
 
         // 3. Stale Append (Expected 1 -> Fail, Actual is 2)
-        let res = store
-            .append_event("stream-c", event3.clone(), 1)
-            .await;
-        
+        let res = store.append_event("stream-c", event3.clone(), 1).await;
+
         match res {
             Err(EventStoreError::ConcurrencyError { expected, actual }) => {
                 assert_eq!(expected, 1);
